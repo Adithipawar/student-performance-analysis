@@ -1,29 +1,35 @@
-# preprocessing.py
 import pandas as pd
 
-def load_and_clean_data(file_path):
-    df = pd.read_csv(file_path, skiprows=4)
+def load_and_clean_data(file):
+    # Load the CSV normally — inspect for correct starting row
+    df = pd.read_csv(file)
 
-    subjects = [
-        "Maths", "Physics", "Principles_of_Programming",
-        "Introduction_to_Electronics", "Elective_Subject",
-        "English", "Indian_Constitution", "Scientific_Foundations"
-    ]
+    # Drop any unnamed columns (usually extra empty ones)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed', case=False)]
 
-    identifier_columns = ['USN', 'Name', 'Semester', 'Section']
-    components = ['CIA', 'SEE', 'S-REDUCED', 'TOTAL', 'GRADE', 'REMARKS']
+    # Standardize column names
+    df.columns = df.columns.str.strip().str.upper()
 
-    new_columns = identifier_columns[:]
-    for subject in subjects:
-        for comp in components:
-            new_columns.append(f"{subject}_{comp}")
+    # Rename common columns (flexible mapping)
+    rename_map = {}
+    for col in df.columns:
+        if 'USN' in col:
+            rename_map[col] = 'USN'
+        elif 'NAME' in col:
+            rename_map[col] = 'NAME'
+        elif 'TOTAL' in col:
+            rename_map[col] = 'TOTAL'
+        elif 'RESULT' in col:
+            rename_map[col] = 'RESULT'
+        elif 'SGPA' in col:
+            rename_map[col] = 'SGPA'
+        elif 'CGPA' in col:
+            rename_map[col] = 'CGPA'
 
-    extra_cols = df.columns[len(new_columns):]
-    new_columns.extend(extra_cols)
+    df.rename(columns=rename_map, inplace=True)
 
-    df.columns = new_columns
+    # Identify subject columns (exclude known non-subject columns)
+    non_subject_cols = {'USN', 'NAME', 'TOTAL', 'RESULT', 'SGPA', 'CGPA'}
+    subject_cols = [col for col in df.columns if col not in non_subject_cols]
 
-    for subject in subjects:
-        df[f"{subject}_TOTAL"] = pd.to_numeric(df[f"{subject}_TOTAL"], errors='coerce')
-
-    return df, subjects
+    return df, subject_cols
